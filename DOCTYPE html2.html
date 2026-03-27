@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enloe Dashboard | 2026</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* --- THEME ENGINE --- */
+        :root {
+            --accent: #fbbf24;
+            --bg: #050505;
+            --glass: rgba(25, 25, 25, 0.9);
+            --border: rgba(255, 255, 255, 0.12);
+            --text: #ffffff;
+            --sidebar-bg: #0c0c0c;
+            --sidebar-w: 340px;
+            --brightness: 100%;
+        }
+
+        [data-theme="enloe"] { --accent: #16a34a; --bg: #061a0d; --glass: rgba(10, 35, 15, 0.95); --border: rgba(251, 191, 36, 0.3); }
+        [data-theme="ocean"] { --accent: #0ea5e9; --bg: #020617; --glass: rgba(15, 23, 42, 0.95); --border: rgba(14, 165, 233, 0.2); }
+        [data-theme="gold"] { --accent: #d4af37; --bg: #1a1401; --glass: rgba(45, 35, 10, 0.95); --border: rgba(212, 175, 55, 0.3); }
+        [data-theme="light"] { --accent: #2563eb; --bg: #f1f5f9; --glass: rgba(255, 255, 255, 0.95); --border: rgba(0, 0, 0, 0.15); --text: #0f172a; --sidebar-bg: #ffffff; }
+        [data-theme="dark"] { --accent: #71717a; --bg: #09090b; --glass: rgba(15, 15, 15, 0.98); --border: rgba(255, 255, 255, 0.05); --brightness: 70%; }
+
+        body {
+            margin: 0; font-family: 'Inter', sans-serif;
+            background: var(--bg); color: var(--text);
+            height: 100vh; overflow: hidden; display: flex;
+            filter: brightness(var(--brightness));
+            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* --- BACKGROUND & WEATHER --- */
+        #bg-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; z-index: -2; transition: 0.8s ease; }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: radial-gradient(circle at center, transparent, rgba(0,0,0,0.5)); z-index: -1; }
+        #weather-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+        .sun-glare { position: fixed; top: -15%; right: -15%; width: 70%; height: 70%; background: radial-gradient(circle, rgba(255,255,225,0.12) 0%, transparent 70%); z-index: 0; display: none; animation: pulse 10s infinite alternate; }
+        @keyframes pulse { from { opacity: 0.3; } to { opacity: 0.7; } }
+
+        /* --- SIDEBAR & GEAR --- */
+        #sidebar {
+            width: var(--sidebar-w); height: 100%; background: var(--sidebar-bg);
+            border-right: 1px solid var(--border); padding: 70px 35px;
+            position: fixed; left: calc(var(--sidebar-w) * -1);
+            transition: 0.5s cubic-bezier(0.4, 0, 0.2, 1); z-index: 2000;
+            box-sizing: border-box; overflow-y: auto;
+        }
+        #sidebar.open { left: 0; box-shadow: 25px 0 100px rgba(0,0,0,0.9); }
+
+        .gear-btn {
+            position: fixed; top: 30px; left: 30px;
+            background: var(--glass); border: 1px solid var(--border);
+            color: var(--text); width: 55px; height: 55px; border-radius: 15px;
+            cursor: pointer; z-index: 2100; display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(12px); transition: 0.3s;
+        }
+        .gear-btn:hover { transform: rotate(90deg); border-color: var(--accent); }
+
+        /* --- MAIN UI --- */
+        .main-content {
+            flex-grow: 1; display: grid; grid-template-columns: 1.3fr 1fr;
+            gap: 120px; padding: 0 120px; align-items: center; z-index: 10;
+            width: 100%; height: 100%;
+        }
+
+        .clock-face {
+            font-family: 'JetBrains Mono', monospace; font-size: 9.5rem;
+            font-weight: 800; line-height: 0.8; letter-spacing: -9px; margin-bottom: 30px;
+        }
+        .countdown-timer {
+            font-size: 1.6rem; color: var(--accent); font-weight: 700;
+            border-left: 7px solid var(--accent); padding-left: 30px;
+            text-transform: uppercase; letter-spacing: 4px;
+        }
+
+        .right-panel { display: flex; flex-direction: column; gap: 35px; width: 100%; }
+        .schedule-box {
+            background: var(--glass); backdrop-filter: blur(60px);
+            border: 1px solid var(--border); border-radius: 45px;
+            padding: 50px; box-shadow: 0 50px 100px rgba(0,0,0,0.6);
+            max-height: 55vh; overflow-y: auto;
+        }
+        .period-row { display: flex; justify-content: space-between; padding: 25px 0; border-bottom: 1px solid var(--border); }
+        .period-row.active { color: var(--accent); font-weight: 800; border-bottom: 2px solid var(--accent); }
+        .p-time { opacity: 0.5; font-family: 'JetBrains Mono'; font-size: 1rem; }
+
+        .days-counter-box {
+            background: var(--glass); border: 1px solid var(--border); border-radius: 35px;
+            padding: 35px; text-align: center;
+        }
+        .days-num { font-size: 5rem; font-weight: 800; color: var(--accent); line-height: 1; }
+        .days-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 3px; opacity: 0.6; margin-top: 12px; }
+
+        /* --- DROP DOWN STYLING --- */
+        select {
+            width: 100%; padding: 14px; background: #1a1a1a; border: 2px solid var(--border);
+            color: #ffffff; border-radius: 12px; margin-bottom: 30px; font-size: 0.95rem; font-weight: 600;
+            outline: none; appearance: none; cursor: pointer;
+        }
+        select:focus { border-color: var(--accent); }
+        label { display: block; font-size: 0.75rem; color: var(--accent); margin-bottom: 12px; text-transform: uppercase; font-weight: 800; letter-spacing: 1px; }
+        
+        /* Ensure dropdown text is visible on Light theme */
+        [data-theme="light"] select { background: #ffffff; color: #000000; border: 2px solid #ddd; }
+    </style>
+</head>
+<body data-theme="default">
+
+<div id="bg-layer"></div>
+<div class="sun-glare" id="sun-glare"></div>
+<canvas id="weather-canvas"></canvas>
+<div class="overlay"></div>
+
+<button class="gear-btn" onclick="document.getElementById('sidebar').classList.toggle('open')">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+</button>
+
+<div id="sidebar">
+    <h2 style="margin-top:0; letter-spacing: 2px; font-weight: 800; border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-bottom: 30px;">SETTINGS</h2>
+    
+    <label>Interface Theme</label>
+    <select id="themeSelect" onchange="updateTheme()">
+        <option value="default">Default Amber</option>
+        <option value="enloe">Enloe Eagles (Green)</option>
+        <option value="ocean">Ocean Blue</option>
+        <option value="gold">Luxury Gold</option>
+        <option value="light">Light Mode</option>
+        <option value="dark">Muted Dark</option>
+    </select>
+
+    <label>Current Schedule</label>
+    <select id="modeSelect" onchange="renderAll()">
+        <option value="reg">Regular Schedule</option>
+        <option value="home">Homeroom Schedule</option>
+        <option value="assy">Assembly Schedule</option>
+        <option value="d2">2-Hour Delay</option>
+        <option value="d3">3-Hour Delay</option>
+        <option value="e2">2-Hour Early Release</option>
+        <option value="e3">3-Hour Early Release</option>
+        <option value="ehome">Early Release + Homeroom</option>
+    </select>
+
+    <label>Lunch Assignment</label>
+    <select id="lunchSelect" onchange="renderAll()">
+        <option value="A">Lunch A</option>
+        <option value="B">Lunch B</option>
+    </select>
+
+    <label>Visual Background</label>
+    <select id="bgSelect" onchange="updateBG()">
+        <option value="https://images.pexels.com/photos/289737/pexels-photo-289737.jpeg?auto=compress&cs=tinysrgb&w=1920">Abstract Geometry</option>
+        <option value="https://images.pexels.com/photos/1624496/pexels-photo-1624496.jpeg?auto=compress&cs=tinysrgb&w=1920">Starry Peaks</option>
+        <option value="https://images.pexels.com/photos/1366919/pexels-photo-1366919.jpeg?auto=compress&cs=tinysrgb&w=1920">Evergreen Fog</option>
+        <option value="https://images.pexels.com/photos/1252890/pexels-photo-1252890.jpeg?auto=compress&cs=tinysrgb&w=1920">City Lights</option>
+    </select>
+
+    <label>Weather FX</label>
+    <select id="weatherSelect" onchange="updateWeather()">
+        <option value="none">Clear Skies</option>
+        <option value="sun">Sunny Glare</option>
+        <option value="rain">Rainy Day</option>
+        <option value="snow">Winter Snow</option>
+    </select>
+</div>
+
+<div class="main-content">
+    <div id="left-side">
+        <div id="date-pill" style="background:var(--accent); color:#000; display:inline-block; padding:10px 22px; border-radius:12px; font-weight:900; font-size:0.8rem; letter-spacing:2px; text-transform: uppercase; margin-bottom: 25px;">DATE LOADING...</div>
+        <div class="clock-face" id="clock">0:00:00</div>
+        <div class="countdown-timer" id="countdown">DASHBOARD READY</div>
+        <div id="next-day-info" style="font-size: 1rem; opacity: 0.5; margin-top: 25px; text-transform: uppercase; font-weight: 600; letter-spacing: 1px;"></div>
+    </div>
+    
+    <div class="right-panel">
+        <div class="schedule-box" id="schedule-list"></div>
+        <div class="days-counter-box">
+            <div class="days-num" id="days-count">--</div>
+            <div class="days-label">school days left before end of school</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const schedules = {
+        reg: [{n:"1st Period",s:"07:25",e:"08:52"},{n:"2nd Period",s:"08:58",e:"10:35"},{n:"1st Lunch",s:"10:41",e:"11:16",l:"A"},{n:"3rd Period",s:"11:20",e:"12:47",l:"A"},{n:"3rd Period",s:"10:41",e:"12:08",l:"B"},{n:"2nd Lunch",s:"12:12",e:"12:47",l:"B"},{n:"4th Period",s:"12:53",e:"14:20"}],
+        home: [{n:"1st Period",s:"07:25",e:"08:50"},{n:"Homeroom",s:"08:56",e:"09:08"},{n:"2nd Period",s:"09:14",e:"10:39"},{n:"1st Lunch",s:"10:45",e:"11:20",l:"A"},{n:"3rd Period",s:"11:24",e:"12:49",l:"A"},{n:"3rd Period",s:"10:45",e:"12:10",l:"B"},{n:"2nd Lunch",s:"12:14",e:"12:49",l:"B"},{n:"4th Period",s:"12:55",e:"14:20"}],
+        assy: [{n:"1st Period",s:"07:25",e:"08:37"},{n:"2nd Period",s:"08:43",e:"09:54"},{n:"1st Lunch",s:"10:00",e:"10:36",l:"A"},{n:"3rd Period",s:"10:40",e:"11:49",l:"A"},{n:"3rd Period",s:"10:00",e:"11:09",l:"B"},{n:"2nd Lunch",s:"11:13",e:"11:49",l:"B"},{n:"4th Period",s:"11:55",e:"13:00"},{n:"Assembly",s:"13:00",e:"14:20"}],
+        d2: [{n:"1st Period",s:"09:25",e:"10:25"},{n:"2nd Period",s:"10:31",e:"11:31"},{n:"1st Lunch",s:"11:37",e:"12:10",l:"A"},{n:"3rd Period",s:"12:14",e:"13:14",l:"A"},{n:"3rd Period",s:"11:37",e:"12:37",l:"B"},{n:"2nd Lunch",s:"12:41",e:"13:14",l:"B"},{n:"4th Period",s:"13:20",e:"14:20"}],
+        d3: [{n:"1st Period",s:"10:25",e:"11:10"},{n:"2nd Period",s:"11:16",e:"12:01"},{n:"1st Lunch",s:"12:07",e:"12:40",l:"A"},{n:"3rd Period",s:"12:44",e:"13:29",l:"A"},{n:"3rd Period",s:"12:07",e:"12:40",l:"B"},{n:"2nd Lunch",s:"12:44",e:"13:29",l:"B"},{n:"4th Period",s:"13:35",e:"14:20"}],
+        e2: [{n:"1st Period",s:"07:25",e:"08:30"},{n:"2nd Period",s:"08:36",e:"09:41"},{n:"3rd Period",s:"09:47",e:"10:52"},{n:"4th Period",s:"10:58",e:"12:03"}],
+        e3: [{n:"1st Period",s:"07:25",e:"08:15"},{n:"2nd Period",s:"08:21",e:"09:11"},{n:"3rd Period",s:"09:17",e:"10:07"},{n:"4th Period",s:"10:13",e:"11:03"}],
+        ehome: [{n:"1st Period",s:"07:25",e:"08:26"},{n:"Homeroom",s:"08:32",e:"08:44"},{n:"2nd Period",s:"08:50",e:"09:51"},{n:"3rd Period",s:"09:57",e:"10:58"},{n:"4th Period",s:"11:04",e:"12:05"}]
+    };
+
+    const exclusions = [
+        "2025-09-01", "2025-10-31", "2025-11-11", "2025-11-26", "2025-11-27", "2025-11-28",
+        "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-29", "2025-12-30", "2025-12-31",
+        "2026-01-01", "2026-01-02", "2026-01-19", "2026-01-20", "2026-02-16", "2026-03-30", "2026-03-31", "2026-04-01",
+        "2026-04-02", "2026-04-03", "2026-05-25"
+    ];
+
+    function timeToSecs(t) { let [h, m] = t.split(':').map(Number); return h * 3600 + m * 60; }
+    function format12(timeStr) {
+        let [h, m] = timeStr.split(':').map(Number);
+        let sfx = h >= 12 ? 'pm' : 'am';
+        h = h % 12 || 12;
+        return `${h}:${m.toString().padStart(2,'0')}${sfx}`;
+    }
+
+    function calculateSchoolDays() {
+        const today = new Date();
+        const lastDay = new Date("2026-06-12");
+        let count = 0;
+        let cur = new Date(today);
+        cur.setHours(0,0,0,0);
+        while (cur <= lastDay) {
+            const dayOfWeek = cur.getDay(); 
+            const ds = cur.toISOString().split('T')[0];
+            if (dayOfWeek !== 0 && dayOfWeek !== 6 && !exclusions.includes(ds)) count++;
+            cur.setDate(cur.getDate() + 1);
+        }
+        return count;
+    }
+
+    function renderAll() {
+        const now = new Date();
+        const curSecs = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+        document.getElementById('date-pill').innerText = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+        let h12 = now.getHours() % 12 || 12;
+        document.getElementById('clock').innerText = `${h12}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+        const mode = document.getElementById('modeSelect').value;
+        const lunch = document.getElementById('lunchSelect').value;
+        const list = document.getElementById('schedule-list');
+        const countEl = document.getElementById('countdown');
+        const nextDayEl = document.getElementById('next-day-info');
+        let html = ''; let active = false;
+
+        schedules[mode].forEach(p => {
+            if (p.l && p.l !== lunch) return;
+            const s = timeToSecs(p.s); const e = timeToSecs(p.e);
+            const isActive = curSecs >= s && curSecs < e;
+            if (isActive) {
+                active = true;
+                const rem = e - curSecs;
+                const m = Math.floor(rem / 60); const s_rem = rem % 60;
+                let lbl = p.n;
+                if (lbl.includes("Lunch")) lbl = (p.l === "A" ? "1ST LUNCH" : "2ND LUNCH");
+                countEl.innerText = `${m}:${s_rem.toString().padStart(2,'0')} LEFT IN ${lbl.toUpperCase()}`;
+                nextDayEl.innerText = "";
+            }
+            html += `<div class="period-row ${isActive ? 'active' : ''}"><span>${p.n}</span><span class="p-time">${format12(p.s)} - ${format12(p.e)}</span></div>`;
+        });
+        if (!active) {
+            countEl.innerText = "SCHOOL DISMISSED";
+            let nd = new Date(); nd.setDate(now.getDate() + 1);
+            while(nd.getDay() === 0 || nd.getDay() === 6 || exclusions.includes(nd.toISOString().split('T')[0])) nd.setDate(nd.getDate() + 1);
+            nextDayEl.innerText = `NEXT SCHOOL DAY: ${nd.toLocaleDateString('en-US', {weekday:'long', month:'long', day:'numeric'})}`;
+        }
+        list.innerHTML = html;
+        document.getElementById('days-count').innerText = calculateSchoolDays();
+    }
+
+    /* --- WEATHER ENGINE --- */
+    const canvas = document.getElementById('weather-canvas');
+    const ctx = canvas.getContext('2d');
+    let particles = [];
+    let weatherType = 'none';
+
+    function initWeather() {
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        particles = [];
+        let count = weatherType === 'rain' ? 150 : (weatherType === 'snow' ? 120 : 0);
+        for(let i=0; i<count; i++) {
+            particles.push({ 
+                x: Math.random() * canvas.width, 
+                y: Math.random() * canvas.height, 
+                v: Math.random() * 5 + 2, 
+                size: weatherType === 'rain' ? Math.random() * 2 + 1 : Math.random() * 4 + 1 
+            });
+        }
+    }
+
+    function animate() {
+        ctx.clearRect(0,0, canvas.width, canvas.height);
+        if (weatherType !== 'none' && weatherType !== 'sun') {
+            ctx.fillStyle = weatherType === 'rain' ? 'rgba(174,194,224,0.6)' : 'white';
+            particles.forEach(p => {
+                ctx.beginPath();
+                if(weatherType === 'rain') { ctx.rect(p.x, p.y, p.size/2, p.size * 6); } 
+                else { ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); }
+                ctx.fill(); p.y += p.v; if (p.y > canvas.height) p.y = -20;
+            });
+        }
+        requestAnimationFrame(animate);
+    }
+
+    function updateWeather() {
+        weatherType = document.getElementById('weatherSelect').value;
+        document.getElementById('sun-glare').style.display = (weatherType === 'sun') ? 'block' : 'none';
+        initWeather();
+    }
+
+    function updateTheme() { document.body.setAttribute('data-theme', document.getElementById('themeSelect').value); }
+    function updateBG() { document.getElementById('bg-layer').style.backgroundImage = `url(${document.getElementById('bgSelect').value})`; }
+
+    window.addEventListener('resize', initWeather);
+    updateBG(); updateTheme(); initWeather(); animate();
+    setInterval(renderAll, 1000); renderAll();
+</script>
+</body>
+</html>
